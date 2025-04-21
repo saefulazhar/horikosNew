@@ -40,9 +40,24 @@ class Kosan_model extends CI_Model {
                         ->row();
     }
 
+    public function get_kosan_by_id($id) {
+        return $this->db->where('id', $id)
+                        ->get('kosans')
+                        ->row();
+    }
+
     public function get_photos($kosan_id) {
         return $this->db->where('kosan_id', $kosan_id)
                         ->get('photos')
+                        ->result();
+    }
+
+    public function get_kosan_facilities($kosan_id) {
+        return $this->db->select('f.id, f.name')
+                        ->from('kosan_facilities kf')
+                        ->join('facilities f', 'kf.facility_id = f.id')
+                        ->where('kf.kosan_id', $kosan_id)
+                        ->get()
                         ->result();
     }
 
@@ -50,5 +65,71 @@ class Kosan_model extends CI_Model {
         return $this->db->where('owner_id', $owner_id)
                         ->get('kosans')
                         ->result();
+    }
+
+    public function save_kosan($data) {
+        $this->db->insert('kosans', $data);
+        return $this->db->insert_id();
+    }
+
+    public function save_kosan_facilities($kosan_id, $facility_ids) {
+        foreach ($facility_ids as $facility_id) {
+            $this->db->insert('kosan_facilities', [
+                'kosan_id' => $kosan_id,
+                'facility_id' => $facility_id
+            ]);
+        }
+    }
+
+    public function save_photos($kosan_id, $photos) {
+        foreach ($photos as $photo) {
+            $this->db->insert('photos', [
+                'kosan_id' => $kosan_id,
+                'url' => $photo['url'],
+                'is_primary' => $photo['is_primary']
+            ]);
+        }
+    }
+
+    public function get_inactive_kosans() {
+        return $this->db->where('status', 'inactive')
+                        ->get('kosans')
+                        ->result();
+    }
+
+    public function get_all_kosans($status = null) {
+        if ($status) {
+            $this->db->where('status', $status);
+        }
+        return $this->db->get('kosans')->result();
+    }
+
+    public function update_kosan_status($id, $status) {
+        $this->db->where('id', $id)
+                 ->update('kosans', ['status' => $status]);
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function delete_kosan($id) {
+        // Hapus foto fisik
+        $photos = $this->get_photos($id);
+        foreach ($photos as $photo) {
+            unlink(FCPATH . 'assets/uploads/' . $photo->url);
+        }
+        $this->db->where('id', $id)
+                 ->delete('kosans');
+        return $this->db->affected_rows() > 0;
+    }
+
+    public function count_kosans($status = null) {
+        if ($status) {
+            $this->db->where('status', $status);
+        }
+        return $this->db->count_all_results('kosans');
+    }
+    public function update_kosan($id, $data) {
+        $this->db->where('id', $id)
+                 ->update('kosans', $data);
+        return $this->db->affected_rows() > 0;
     }
 }
